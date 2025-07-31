@@ -1,12 +1,15 @@
 import boto3
 import json
+import os
 from typing import Dict, Any, List
 
 class ClaudeClient:
     def __init__(self, region_name: str = "us-west-2"):
         """Initialize Claude client for invoice processing."""
-        self.client = boto3.client("bedrock-runtime", region_name=region_name)
-        self.model_id = "anthropic.claude-3-5-haiku-20241022-v1:0" 
+        # Ensure we use the current AWS profile/credentials from environment
+        session = boto3.Session()
+        self.client = session.client("bedrock-runtime", region_name=region_name)
+        self.model_id = "anthropic.claude-3-haiku-20240307-v1:0" 
     
     def format_extracted_text(self, raw_text: str, document_type: str = "invoice") -> Dict[str, Any]:
         """
@@ -43,6 +46,55 @@ class ClaudeClient:
         """
         
         return self._call_claude(prompt)
+    
+    def chat_with_streaming(self, message: str, context: str = "") -> Dict[str, Any]:
+        """
+        Chat with Claude using streaming for real-time responses.
+        
+        Args:
+            message: User message
+            context: Additional context for the conversation
+            
+        Returns:
+            Streaming response from Claude
+        """
+        full_prompt = f"{context}\n\nUser: {message}\n\nAssistant:" if context else message
+        
+        payload = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 2000,
+            "messages": [{"role": "user", "content": full_prompt}],
+            "temperature": 0.1
+        }
+        
+        try:
+            response = self.client.invoke_model_with_response_stream(
+                modelId=self.model_id,
+                body=json.dumps(payload)
+            )
+            
+            # Process streaming response
+            full_response = ""
+            for event in response["body"]:
+                chunk = event.get("chunk")
+                if chunk:
+                    chunk_data = json.loads(chunk["bytes"])
+                    if chunk_data.get("type") == "content_block_delta":
+                        delta = chunk_data.get("delta", {})
+                        if delta.get("type") == "text_delta":
+                            full_response += delta.get("text", "")
+            
+            return {
+                "success": True,
+                "response": full_response,
+                "streaming": True
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Claude streaming error: {str(e)}"
+            }
     
     def validate_extraction(self, extracted_data: Dict[str, Any], raw_text: str) -> Dict[str, Any]:
         """
@@ -116,4 +168,38 @@ class ClaudeClient:
         except Exception as e:
             return {
                 "error": f"Claude API error: {str(e)}"
+            }
+    
+    def _call_claude_with_tools(self, messages: List[Dict], tools: List[Dict], max_tokens: int = 2000) -> Dict[str, Any]:
+        """
+        Call Claude with tool calling capabilities.
+        
+        Args:
+            messages: Conversation messages
+            tools: Available tools for Claude to use
+            max_tokens: Maximum tokens to generate
+            
+        Returns:
+            Claude response with potential tool calls
+        """
+        payload = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": max_tokens,
+            "messages": messages,
+            "tools": tools,
+            "temperature": 0.1
+        }
+        
+        try:
+            response = self.client.invoke_model(
+                modelId=self.model_id,
+                body=json.dumps(payload)
+            )
+            
+            response_body = json.loads(response["body"].read())
+            return response_body
+                
+        except Exception as e:
+            return {
+                "error": f"Claude tool calling error: {str(e)}"
             }

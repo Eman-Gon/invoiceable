@@ -102,8 +102,7 @@ class DocumentProcessor:
                     'headers': self._get_cors_headers(),
                     'body': json.dumps({
                         'error': 'Text formatting failed',
-                        'details': formatting_result,
-                        'raw_text': raw_text  # Include raw text for debugging
+                        'details': formatting_result
                     })
                 }
             

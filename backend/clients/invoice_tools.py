@@ -55,7 +55,8 @@ class InvoiceTools:
         groups = defaultdict(list)
         
         for invoice in self.invoices:
-            data = invoice.get('data', {})
+            # FIXED: Use 'structured_data' instead of 'data'
+            data = invoice.get('structured_data', {})
             amount = data.get('total_amount', 0)
             
             if not amount:
@@ -127,7 +128,8 @@ class InvoiceTools:
         filtered = []
         
         for invoice in self.invoices:
-            data = invoice.get('data', {})
+            # FIXED: Use 'structured_data' instead of 'data'
+            data = invoice.get('structured_data', {})
             
             # Vendor filter
             if vendor and vendor.lower() not in data.get('vendor_name', '').lower():
@@ -167,7 +169,8 @@ class InvoiceTools:
     def get_invoice_details(self, invoice_number: str) -> Optional[Dict]:
         """Get full details of a specific invoice by number."""
         for invoice in self.invoices:
-            data = invoice.get('data', {})
+            # FIXED: Use 'structured_data' instead of 'data'
+            data = invoice.get('structured_data', {})
             if data.get('invoice_number') == invoice_number:
                 return invoice
         return None
@@ -182,7 +185,8 @@ class InvoiceTools:
         })
         
         for invoice in self.invoices:
-            data = invoice.get('data', {})
+            # FIXED: Use 'structured_data' instead of 'data'
+            data = invoice.get('structured_data', {})
             vendor = data.get('vendor_name', 'Unknown')
             amount = data.get('total_amount', 0)
             
@@ -208,7 +212,8 @@ class InvoiceTools:
         payment_terms = defaultdict(int)
         
         for invoice in self.invoices:
-            data = invoice.get('data', {})
+            # FIXED: Use 'structured_data' instead of 'data'
+            data = invoice.get('structured_data', {})
             
             amount = data.get('total_amount', 0)
             total_amount += amount
@@ -302,4 +307,4 @@ INVOICE_TOOLS = [
             "properties": {}
         }
     }
-] 
+]

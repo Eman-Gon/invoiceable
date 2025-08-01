@@ -393,7 +393,35 @@ class ClaudeClient:
             validation_result["suggestions"].append("🔍 Manual review recommended")
         
         return validation_result
-    
+    def _call_claude_with_tools(self, messages: List[Dict], tools: List[Dict], max_tokens: int = 2000) -> Dict[str, Any]:
+        """
+        Call Claude with tool calling capabilities.
+        """
+        payload = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": max_tokens,
+            "messages": messages,
+            "tools": tools,
+            "temperature": 0.1
+        }
+        
+        try:
+            print(f"🤖 Calling Claude with tools: {self.model_id}")
+            response = self.client.invoke_model(
+                modelId=self.model_id,
+                body=json.dumps(payload)
+            )
+            
+            response_body = json.loads(response["body"].read())
+            print(f"✅ Claude tools response received")
+            return response_body
+                
+        except Exception as e:
+            print(f"❌ Claude tool calling error: {str(e)}")
+            return {
+                "error": f"Claude tool calling error: {str(e)}"
+            }
+        
     def _call_claude(self, message: str, max_tokens: int = 3000) -> Dict[str, Any]:
         """🤖 Call Claude API with enhanced error handling"""
         payload = {
@@ -442,3 +470,4 @@ class ClaudeClient:
         except Exception as e:
             print(f"❌ Claude API error: {str(e)}")
             raise e
+        

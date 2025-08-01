@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ZoomIn, ZoomOut, RotateCw, FileText, Image, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, RotateCw, FileText, Image, ChevronLeft, ChevronRight, Maximize2, Grid } from 'lucide-react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -10,7 +10,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 const PDFPreview = ({ invoice, onClose }) => {
   const [scale, setScale] = useState(1.0);
   const [rotation, setRotation] = useState(0);
-  const [viewMode, setViewMode] = useState('split'); // 'split', 'text', 'pdf'
+  const [viewMode, setViewMode] = useState('split'); // 'split', 'text', 'pdf', 'fullpdf'
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
 
@@ -40,6 +40,31 @@ const PDFPreview = ({ invoice, onClose }) => {
 
   // Create data URL from base64
   const pdfDataUrl = invoice.fileData ? `data:application/pdf;base64,${invoice.fileData}` : null;
+
+  // Render all pages for full PDF view
+  const renderAllPages = () => {
+    if (!numPages) return null;
+    
+    const pages = [];
+    for (let i = 1; i <= numPages; i++) {
+      pages.push(
+        <div key={i} className="mb-4 shadow-lg">
+          <div className="bg-gray-200 px-3 py-1 text-xs font-medium text-gray-700 rounded-t">
+            Page {i} of {numPages}
+          </div>
+          <Page
+            pageNumber={i}
+            scale={scale}
+            rotate={rotation}
+            renderTextLayer={true}
+            renderAnnotationLayer={true}
+            className="border border-gray-300"
+          />
+        </div>
+      );
+    }
+    return pages;
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -79,6 +104,7 @@ const PDFPreview = ({ invoice, onClose }) => {
                 }`}
                 title="Split View"
               >
+                <Grid className="h-4 w-4 inline mr-1" />
                 Split
               </button>
               <button
@@ -88,16 +114,29 @@ const PDFPreview = ({ invoice, onClose }) => {
                     ? 'bg-white text-gray-900 shadow-sm' 
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
-                title="PDF Preview"
+                title="Single Page PDF"
                 disabled={!invoice.fileData}
               >
                 <Image className="h-4 w-4 inline mr-1" />
-                PDF
+                Page
+              </button>
+              <button
+                onClick={() => setViewMode('fullpdf')}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  viewMode === 'fullpdf' 
+                    ? 'bg-white text-gray-900 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                title="Full PDF View"
+                disabled={!invoice.fileData}
+              >
+                <Maximize2 className="h-4 w-4 inline mr-1" />
+                Full PDF
               </button>
             </div>
             
             {/* Preview Controls */}
-            {viewMode === 'pdf' && (
+            {(viewMode === 'pdf' || viewMode === 'fullpdf') && (
               <div className="flex items-center space-x-1 mr-4">
                 <button
                   onClick={handleZoomOut}
@@ -137,6 +176,7 @@ const PDFPreview = ({ invoice, onClose }) => {
 
         {/* Content */}
         <div className={`flex h-[calc(90vh-100px)] ${viewMode === 'split' ? 'divide-x divide-gray-200' : ''}`}>
+          
           {/* Raw Text Preview */}
           {(viewMode === 'text' || viewMode === 'split') && (
             <div className={`${viewMode === 'split' ? 'w-1/2' : 'w-full'} overflow-y-auto p-4`}>
@@ -154,7 +194,7 @@ const PDFPreview = ({ invoice, onClose }) => {
             </div>
           )}
 
-          {/* PDF Preview */}
+          {/* Single Page PDF Preview */}
           {viewMode === 'pdf' && pdfDataUrl && (
             <div className="w-full overflow-hidden flex flex-col">
               {/* Page Navigation */}
@@ -180,7 +220,7 @@ const PDFPreview = ({ invoice, onClose }) => {
                 </div>
               )}
               
-              {/* PDF Viewer */}
+              {/* Single Page PDF Viewer */}
               <div className="flex-1 overflow-auto flex items-center justify-center bg-gray-100 p-4">
                 <Document
                   file={pdfDataUrl}
@@ -207,6 +247,45 @@ const PDFPreview = ({ invoice, onClose }) => {
                     className="shadow-lg"
                   />
                 </Document>
+              </div>
+            </div>
+          )}
+
+          {/* Full PDF View - NEW FEATURE */}
+          {viewMode === 'fullpdf' && pdfDataUrl && (
+            <div className="w-full overflow-hidden flex flex-col">
+              {/* Full PDF Header */}
+              <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
+                <div className="text-sm text-gray-700">
+                  Viewing all {numPages || 0} pages
+                </div>
+                <div className="text-xs text-gray-500">
+                  Scroll to navigate through pages
+                </div>
+              </div>
+              
+              {/* Full PDF Viewer - All Pages */}
+              <div className="flex-1 overflow-y-auto bg-gray-100 p-4">
+                <div className="flex flex-col items-center space-y-4">
+                  <Document
+                    file={pdfDataUrl}
+                    onLoadSuccess={onDocumentLoadSuccess}
+                    loading={
+                      <div className="text-center text-gray-500">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                        <p>Loading full PDF...</p>
+                      </div>
+                    }
+                    error={
+                      <div className="text-center text-red-500">
+                        <p className="mb-2">Failed to load PDF</p>
+                        <p className="text-sm text-gray-500">Try refreshing or use other view modes</p>
+                      </div>
+                    }
+                  >
+                    {renderAllPages()}
+                  </Document>
+                </div>
               </div>
             </div>
           )}
@@ -315,4 +394,4 @@ const PDFPreview = ({ invoice, onClose }) => {
   );
 };
 
-export default PDFPreview; 
+export default PDFPreview;
